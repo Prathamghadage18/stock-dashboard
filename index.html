@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modern Index Dashboard</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f7f9fc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    /* Header Styling */
+    .header {
+      background-color: #fff;
+      padding: 20px 30px;
+      border-bottom: 1px solid #e3e6f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #333;
+      margin: 0;
+    }
+    /* Sidebar Styling */
+    .sidebar {
+      background-color: #fff;
+      border-right: 1px solid #e3e6f0;
+      padding: 20px;
+      height: 100vh;
+      overflow-y: auto;
+      transition: all 0.3s ease;
+    }
+    .sidebar h4 {
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .sidebar .list-group-item {
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 10px 15px;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      font-size: 1rem;
+      color: #333;
+    }
+    .sidebar .list-group-item:hover {
+      background-color: #e9f1f7;
+      transform: scale(1.02);
+      cursor: pointer;
+    }
+    /* Content Styling */
+    .content {
+      padding: 30px;
+    }
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      animation: fadeInUp 0.8s ease;
+    }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .card-header {
+      background-color: #4e73df;
+      color: #fff;
+      padding: 15px 20px;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+    .card-body {
+      padding: 20px;
+    }
+    /* Chart canvas styling */
+    #stockChart {
+      min-height: 450px;
+    }
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .sidebar {
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>Index Dashboard</h1>
+  </div>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-3 sidebar">
+        <h4>Select Index</h4>
+        <ul class="list-group" id="indexList"></ul>
+      </div>
+      <!-- Main Content -->
+      <div class="col-md-9 content">
+        <div id="chartCard" class="card d-none">
+          <div class="card-header" id="indexTitle"></div>
+          <div class="card-body">
+            <canvas id="stockChart"></canvas>
+          </div>
+        </div>
+        <!-- Message area -->
+        <div id="message" class="alert alert-info d-none mt-3">
+          Click on an index name to see details.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API URL for backend (ensure server is running on port 5000)
+    const API_URL = "http://localhost:5000/indexes";
+
+    async function fetchIndexes() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const data = await response.json();
+        console.log("Fetched indexes:", data);
+        return data;
+      } catch (error) {
+        console.error("Fetch error:", error);
+      }
+    }
+
+    // Create an attractive chart with smooth transitions and gradient fill
+    function createChart(labels, values, indexName) {
+      // Display the chart card
+      const chartCard = document.getElementById("chartCard");
+      chartCard.classList.remove("d-none");
+      document.getElementById("indexTitle").innerText = indexName;
+      const ctx = document.getElementById("stockChart").getContext("2d");
+
+      // Destroy existing chart if it exists
+      if (window.stockChart && typeof window.stockChart.destroy === 'function') {
+        window.stockChart.destroy();
+      }
+
+      // Create a gradient for the chart fill
+      const gradientStroke = ctx.createLinearGradient(0, 0, 0, 450);
+      gradientStroke.addColorStop(0, "rgba(78, 115, 223, 0.4)");
+      gradientStroke.addColorStop(1, "rgba(78, 115, 223, 0)");
+
+      window.stockChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Closing Index Value",
+            data: values,
+            borderColor: "#4e73df",
+            backgroundColor: gradientStroke,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: "#fff",
+            pointBorderColor: "#4e73df",
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1500,
+            easing: "easeOutQuart"
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: "Date",
+                font: { size: 14 }
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45,
+                font: { size: 12 }
+              }
+            },
+            y: {
+              display: true,
+              title: {
+                display: true,
+                text: "Closing Index Value",
+                font: { size: 14 }
+              },
+              ticks: {
+                font: { size: 12 }
+              },
+              beginAtZero: false
+            }
+          },
+          plugins: {
+            tooltip: {
+              backgroundColor: "#fff",
+              titleColor: "#333",
+              bodyColor: "#333",
+              borderColor: "#4e73df",
+              borderWidth: 1,
+              cornerRadius: 4,
+              padding: 10,
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+            },
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    async function setup() {
+      const indexes = await fetchIndexes();
+      if (!indexes || indexes.length === 0) {
+        console.error("No data returned from API");
+        return;
+      }
+
+      const indexList = document.getElementById("indexList");
+      const messageDiv = document.getElementById("message");
+      messageDiv.classList.remove("d-none");
+      messageDiv.innerText = "Click on an index name to see details.";
+
+      // Get unique index names from the data
+      const indexNames = [...new Set(indexes.map(item => item.index_name))];
+      console.log("Unique index names:", indexNames);
+
+      indexNames.forEach(indexName => {
+        const item = document.createElement("li");
+        item.className = "list-group-item py-2";
+        item.innerText = indexName;
+        item.onclick = () => {
+          console.log("Clicked on index:", indexName);
+          const filteredData = indexes.filter(item => item.index_name === indexName);
+          if (filteredData.length === 0) {
+            console.warn("No data found for", indexName);
+            return;
+          }
+          // Sort the data by date
+          filteredData.sort((a, b) => new Date(a.index_date) - new Date(b.index_date));
+          console.log("Filtered data for", indexName, filteredData);
+
+          // Extract labels and values
+          const labels = filteredData.map(item => item.index_date);
+          const values = filteredData.map(item => parseFloat(item.closing_index_value));
+          
+          // If all values are invalid, show a message
+          if (values.every(val => isNaN(val))) {
+            console.error("All closing_index_value entries are invalid for", indexName);
+            messageDiv.classList.remove("d-none");
+            messageDiv.innerText = "No valid data available for " + indexName;
+            return;
+          }
+          
+          messageDiv.classList.add("d-none");
+          createChart(labels, values, indexName);
+        };
+        indexList.appendChild(item);
+      });
+    }
+
+    setup();
+  </script>
+</body>
+</html>
